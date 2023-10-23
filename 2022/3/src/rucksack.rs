@@ -77,19 +77,24 @@ impl Rucksack for io::Lines<BufReader<File>> {
             if let Ok(line) = line_res {
                 let (first, second) = line.split_at(line.len()/2);
 
-                // Ok, the into() call is somewhat magic: AFAIU it infers
-                // what is the receiver type and perform the conversion as
-                // necessary (if it's supported), nice! But I failed to make
-                // the conversion manually:
-                // &[u8] -> Box<[u8]>
+                // We could've called .into() here, but to make sure we
+                // understand what's going on we made the conversion
+                // ourselves: for both string slices (&str) we first convert
+                // to an slice of bytes with .as_bytes(), since we want to
+                // operate on each char, than we copy the bytes slice into
+                // an owned vector with .to_owned(), which converts any
+                // slice &[T] into Vec<T>, than, finally, we can get our raw
+                // Box<[u8]> by calling .into_boxed_slice(), which
+                // "unsafely" get the Vec<T> pointer length and data and
+                // create the boxed [T], ignoring other Vec<> constructs
+                // (like capacity).
                 //
-                // In theory it should be a simple call to &[u8].clone()
-                // from within a Box::new() call, however the clone() didn't
-                // made the trick of transforming &[T] to [T] as I expected.
-                // Why?
+                // Refs:
+                //  https://doc.rust-lang.org/std/borrow/trait.ToOwned.html#impl-ToOwned-for-%5BT%5D
+                //  https://doc.rust-lang.org/src/alloc/vec/mod.rs.html#1100
                 let cmpt = Compartments {
-                    one: first.as_bytes().into(),
-                    two: second.as_bytes().into(),
+                    one: first.as_bytes().to_owned().into_boxed_slice(),
+                    two: second.as_bytes().to_owned().into_boxed_slice(),
                 };
                 cmpts.push(cmpt);
             }
