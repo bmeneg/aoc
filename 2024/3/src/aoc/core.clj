@@ -1,17 +1,35 @@
 (ns aoc.core
   (:gen-class)
-  (:require [clojure.java.io :as io]))
+  (:require
+   [clojure.string :as string]
+   [clojure.java.io :as io]))
 
-(defn -parse-programs
-  "Get all the mul(?,?) occurencies and their respective numbers."
+(defn -get-operands
+  "Get both operands from every mul(?,?) operation."
   [programs]
   (map #(subvec % 1)
 	   (mapcat #(re-seq #"mul\((\d{1,3}),(\d{1,3})\)" %) programs)))
 
-(defn -parse-values
-  "Get the values from the mul() operation."
-  [findings]
-  (map #(map read-string %) findings))
+(defn -get-values
+  "Get the real integer values from the string operands."
+  [operands]
+  (map #(map read-string %) operands))
+
+(defn -indices-of
+  "Get all occurencies of a certain substring in a string."
+  [s substr]
+  (loop [idx 0
+		 indices []]
+	(let [found-idx (string/index-of s substr idx)]
+	  (if found-idx
+		(recur (inc found-idx) (conj indices found-idx))
+		indices))))
+
+(defn -get-branch-indices
+  "Get the index for every do/don't in the program."
+  [program]
+  {:do-indices (-indices-of program "do()")
+   :dont-indices (-indices-of program "don't()")})
 
 (defn get-total
   "Perform the sum of all multiplications."
@@ -19,7 +37,7 @@
   (reduce + (map #(apply * %) values)))
 
 (defn -main [& args]
-  (let [findings (-parse-programs (line-seq (io/reader "input")))]
+  (let [programs (line-seq (io/reader "input"))]
 	(do
-	  (println (get-total (-parse-values findings)))
+	  (println (get-total (-get-values (-get-operands programs))))
 	  true)))
